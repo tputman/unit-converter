@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Say It, See It — Unit Converter</title>
+<style>
+  :root{
+    --bg:#1C1B1A;
+    --card:#242220;
+    --card-line:#37332E;
+    --ink:#F2EEE6;
+    --muted:#9C968A;
+    --amber:#E8A33D;
+    --amber-dim:#5A4626;
+    --teal:#5FB3A3;
+    --error:#D9684A;
+    --mono:'IBM Plex Mono', 'Courier New', monospace;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+  body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .app{
+    width:100%;
+    max-width:460px;
+  }
+
+  /* ---------- Header ---------- */
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 6px 2px;
+  }
+  h1{
+    font-size:26px;
+    font-weight:700;
+    margin:0 0 22px 2px;
+    letter-spacing:-0.01em;
+  }
+
+  /* ---------- Mic signature ---------- */
+  .mic-zone{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin-bottom:26px;
+    position:relative;
+  }
+  .mic-rings{
+    position:relative;
+    width:104px; height:104px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ring{
+    position:absolute;
+    border-radius:50%;
+    border:1.5px solid var(--amber);
+    opacity:0;
+  }
+  .mic-rings.listening .ring{
+    animation: ripple 1.8s ease-out infinite;
+  }
+  .ring.r1{ width:104px; height:104px; animation-delay:0s; }
+  .ring.r2{ width:104px; height:104px; animation-delay:0.5s; }
+  .ring.r3{ width:104px; height:104px; animation-delay:1s; }
+  @keyframes ripple{
+    0%{ transform:scale(0.55); opacity:0.65; }
+    100%{ transform:scale(1.35); opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .mic-rings.listening .ring{ animation:none; opacity:0.3; }
+  }
+
+  .mic-btn{
+    width:72px; height:72px;
+    border-radius:50%;
+    border:none;
+    background:radial-gradient(circle at 35% 30%, #F3B65C, var(--amber) 70%);
+    box-shadow:0 4px 18px rgba(232,163,61,0.35);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+    z-index:2;
+  }
+  .mic-btn:active{ transform:scale(0.94); }
+  .mic-btn.listening{
+    background:radial-gradient(circle at 35% 30%, #ff8a65, var(--error) 70%);
+    box-shadow:0 4px 22px rgba(217,104,74,0.45);
+  }
+  .mic-btn svg{ width:28px; height:28px; }
+
+  .mic-hint{
+    margin-top:14px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--muted);
+    text-align:center;
+    min-height:18px;
+    transition:color 0.2s;
+  }
+  .mic-hint.live{ color:var(--amber); }
+  .mic-hint.err{ color:var(--error); }
+  .no-speech-note{
+    margin-top:10px;
+    font-size:11px;
+    color:var(--muted);
+    text-align:center;
+    display:none;
+  }
+
+  /* ---------- Card ---------- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-line);
+    border-radius:18px;
+    padding:20px;
+  }
+
+  .field-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .field{
+    flex:1;
+    min-width:0;
+  }
+  .field label{
+    display:block;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    background:#1A1917;
+    border:1px solid var(--card-line);
+    border-radius:10px;
+    padding:12px 12px;
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:16px;
+    outline:none;
+    transition:border-color 0.15s;
+  }
+  .field input:focus{
+    border-color:var(--amber);
+  }
+  .field input.invalid{
+    border-color:var(--error);
+  }
+
+  .swap-btn{
+    flex:none;
+    width:38px; height:38px;
+    margin-top:18px;
+    border-radius:50%;
+    border:1px solid var(--card-line);
+    background:#1A1917;
+    color:var(--teal);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition:transform 0.2s ease, border-color 0.2s;
+  }
+  .swap-btn:hover{ border-color:var(--teal); }
+  .swap-btn.spin{ transform:rotate(180deg); }
+  .swap-btn svg{ width:18px; height:18px; }
+
+  .clear-btn{
+    display:block;
+    margin:14px auto 0;
+    background:none;
+    border:1px solid var(--card-line);
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    padding:7px 16px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s;
+  }
+  .clear-btn:hover{
+    border-color:var(--error);
+    color:var(--error);
+  }
+
+  /* ---------- Readout ---------- */
+  .readout{
+    margin-top:18px;
+    border-top:1px solid var(--card-line);
+    padding-top:18px;
+    min-height:64px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .readout .result{
+    font-family:var(--mono);
+    font-size:32px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    color:var(--amber);
+    word-break:break-word;
+  }
+  .readout .result .unit{
+    font-size:18px;
+    color:var(--ink);
+    font-weight:500;
+    margin-left:6px;
+  }
+  .readout .note{
+    margin-top:6px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .readout .note.error{ color:var(--error); }
+  .readout .suggestion{
+    margin-top:8px;
+    font-size:13px;
+    color:var(--teal);
+    cursor:pointer;
+    text-decoration:underline;
+    text-decoration-style:dotted;
+    display:inline-block;
+  }
+  .readout .placeholder{
+    font-family:var(--mono);
+    font-size:14px;
+    color:var(--muted);
+  }
+
+  /* ---------- History ---------- */
+  .history-wrap{
+    margin-top:18px;
+  }
+  .history-title{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 8px 2px;
+  }
+  .history-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .history-item{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--muted);
+    background:var(--card);
+    border:1px solid var(--card-line);
+    border-radius:10px;
+    padding:9px 12px;
+    cursor:pointer;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .history-item:hover{ border-color:var(--amber-dim); color:var(--ink); }
+  .history-item .arrow{ color:var(--teal); padding:0 4px; }
+
+  .examples{
+    margin-top:22px;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.6;
+    text-align:center;
+  }
+  .examples b{ color:var(--ink); font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <p class="eyebrow">Speak · Convert · Done</p>
+  <h1>Say It, See It</h1>
+
+  <div class="mic-zone">
+    <div class="mic-rings" id="micRings">
+      <div class="ring r1"></div>
+      <div class="ring r2"></div>
+      <div class="ring r3"></div>
+      <button class="mic-btn" id="micBtn" aria-label="Tap and speak a conversion">
+        <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="#1C1B1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+    </div>
+    <p class="mic-hint" id="micHint">Tap the mic and say "5 km to miles"</p>
+    <p class="no-speech-note" id="noSpeechNote">Voice input isn't supported in this browser — type below instead.</p>
+  </div>
+
+  <div class="card">
+    <div class="field-row">
+      <div class="field">
+        <label for="inputVal">From</label>
+        <input id="inputVal" type="text" inputmode="decimal" placeholder="e.g. 5 km" autocomplete="off">
+      </div>
+      <button class="swap-btn" id="swapBtn" aria-label="Swap units">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+      </button>
+      <div class="field">
+        <label for="outputUnit">To</label>
+        <input id="outputUnit" type="text" placeholder="e.g. miles" autocomplete="off">
+      </div>
+    </div>
+
+    <button class="clear-btn" id="clearBtn" type="button">Clear</button>
+
+    <div class="readout" id="readout">
+      <p class="placeholder">Result appears here.</p>
+    </div>
+  </div>
+
+  <div class="history-wrap" id="historyWrap" style="display:none;">
+    <p class="history-title">Recent</p>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <p class="examples">Try: <b>98.6 F → C</b> &nbsp;·&nbsp; <b>2 cups → mL</b> &nbsp;·&nbsp; <b>150 lbs → kg</b> &nbsp;·&nbsp; <b>60 mph → km/h</b></p>
+</div>
+
+<script>
+(function(){
+
+  // ---------------- Unit definitions ----------------
+  // Each category has a base unit; factor converts FROM unit TO base (linear),
+  // except temperature which uses custom functions.
+
+  const categories = {
+    length: {
+      base: 'm',
+      units: {
+        mm:1e-3, cm:1e-2, m:1, km:1e3,
+        in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344, nmi:1852,
+        um:1e-6, micron:1e-6
+      },
+      aliases: {
+        millimeter:'mm', millimeters:'mm', millimetre:'mm', millimetres:'mm',
+        centimeter:'cm', centimeters:'cm', centimetre:'cm', centimetres:'cm',
+        meter:'m', meters:'m', metre:'m', metres:'m',
+        kilometer:'km', kilometers:'km', kilometre:'km', kilometres:'km',
+        inch:'in', inches:'in', '"':'in',
+        foot:'ft', feet:'ft', "'":'ft',
+        yard:'yd', yards:'yd',
+        mile:'mi', miles:'mi',
+        nauticalmile:'nmi', nauticalmiles:'nmi', nm:'nmi',
+        micrometer:'um', micrometers:'um', micrometre:'um'
+      }
+    },
+    mass: {
+      base: 'g',
+      units: {
+        mg:1e-3, g:1, kg:1e3, t:1e6,
+        oz:28.349523125, lb:453.59237, ton:907184.74, stone:6350.29318
+      },
+      aliases: {
+        milligram:'mg', milligrams:'mg',
+        gram:'g', grams:'g',
+        kilogram:'kg', kilograms:'kg', kilo:'kg', kilos:'kg',
+        tonne:'t', tonnes:'t', metricton:'t',
+        ounce:'oz', ounces:'oz',
+        pound:'lb', pounds:'lb', lbs:'lb',
+        shortton:'ton', tons:'ton',
+        stones:'stone', st:'stone'
+      }
+    },
+    volume: {
+      base: 'l',
+      units: {
+        ml:1e-3, l:1, m3:1000,
+        tsp:0.0049289216, tbsp:0.0147867648, floz:0.0295735296,
+        cup:0.2365882365, pt:0.473176473, qt:0.946352946, gal:3.785411784
+      },
+      aliases: {
+        milliliter:'ml', milliliters:'ml', millilitre:'ml', millilitres:'ml', cc:'ml',
+        liter:'l', liters:'l', litre:'l', litres:'l',
+        cubicmeter:'m3', cubicmeters:'m3',
+        teaspoon:'tsp', teaspoons:'tsp',
+        tablespoon:'tbsp', tablespoons:'tbsp',
+        fluidounce:'floz', fluidounces:'floz', 'fl.oz':'floz',
+        cups:'cup',
+        pint:'pt', pints:'pt',
+        quart:'qt', quarts:'qt',
+        gallon:'gal', gallons:'gal'
+      }
+    },
+    area: {
+      base: 'm2',
+      units: {
+        mm2:1e-6, cm2:1e-4, m2:1, km2:1e6,
+        ha:1e4, acre:4046.8564224,
+        sqft:0.09290304, sqyd:0.83612736, sqmi:2589988.110336, sqin:0.00064516
+      },
+      aliases: {
+        squaremillimeter:'mm2', squaremillimeters:'mm2',
+        squarecentimeter:'cm2', squarecentimeters:'cm2',
+        squaremeter:'m2', squaremeters:'m2',
+        squarekilometer:'km2', squarekilometers:'km2',
+        hectare:'ha', hectares:'ha',
+        acres:'acre',
+        squarefoot:'sqft', squarefeet:'sqft', 'ft2':'sqft',
+        squareyard:'sqyd', squareyards:'sqyd', 'yd2':'sqyd',
+        squaremile:'sqmi', squaremiles:'sqmi', 'mi2':'sqmi',
+        squareinch:'sqin', squareinches:'sqin', 'in2':'sqin'
+      }
+    },
+    speed: {
+      base: 'mps',
+      units: {
+        mps:1, kph:0.27777778, mph:0.44704, knot:0.51444444, fps:0.3048
+      },
+      aliases: {
+        'm/s':'mps', meterspersecond:'mps', metrespersecond:'mps',
+        'km/h':'kph', kmh:'kph', kilometersperhour:'kph', kilometreperhour:'kph',
+        milesperhour:'mph',
+        knots:'knot', kt:'knot', kts:'knot',
+        'ft/s':'fps', feetpersecond:'fps'
+      }
+    },
+    time: {
+      base: 's',
+      units: {
+        ms:1e-3, s:1, min:60, hr:3600, day:86400, week:604800,
+        month:2629800, year:31557600
+      },
+      aliases: {
+        millisecond:'ms', milliseconds:'ms',
+        second:'s', seconds:'s', sec:'s', secs:'s',
+        minute:'min', minutes:'min', mins:'min',
+        hour:'hr', hours:'hr', hrs:'hr', h:'hr',
+        days:'day',
+        weeks:'week',
+        months:'month',
+        years:'year', yr:'year', yrs:'year'
+      }
+    },
+    data: {
+      base: 'b',
+      units: {
+        b:1, kb:1024, mb:1024**2, gb:1024**3, tb:1024**4, pb:1024**5,
+        bit:0.125, kbit:128, mbit:131072
+      },
+      aliases: {
+        byte:'b', bytes:'b',
+        kilobyte:'kb', kilobytes:'kb',
+        megabyte:'mb', megabytes:'mb',
+        gigabyte:'gb', gigabytes:'gb',
+        terabyte:'tb', terabytes:'tb',
+        petabyte:'pb', petabytes:'pb',
+        bits:'bit',
+        kilobit:'kbit', kilobits:'kbit',
+        megabit:'mbit', megabits:'mbit'
+      }
+    },
+    pressure: {
+      base: 'pa',
+      units: {
+        pa:1, kpa:1000, bar:100000, atm:101325, psi:6894.757293, mmhg:133.322387415
+      },
+      aliases: {
+        pascal:'pa', pascals:'pa',
+        kilopascal:'kpa', kilopascals:'kpa',
+        bars:'bar',
+        atmosphere:'atm', atmospheres:'atm',
+        poundspersquareinch:'psi',
+        torr:'mmhg'
+      }
+    },
+    temperature: {
+      base: 'c',
+      special: true,
+      units: { c:1, f:1, k:1 },
+      aliases: {
+        celsius:'c', centigrade:'c',
+        fahrenheit:'f',
+        kelvin:'k'
+      }
+    }
+  };
+
+  // Build a flat lookup: normalized token -> {category, unitKey}
+  const lookup = {};
+  function norm(s){
+    return s.toLowerCase().replace(/[^a-z0-9./'"]/g,'').trim();
+  }
+  for(const catName in categories){
+    const cat = categories[catName];
+    for(const u in cat.units){
+      lookup[norm(u)] = {category:catName, unit:u};
+    }
+    for(const a in cat.aliases){
+      lookup[norm(a)] = {category:catName, unit:cat.aliases[a]};
+    }
+  }
+  const allKnownTokens = Object.keys(lookup);
+
+  function resolveUnit(raw){
+    if(!raw) return null;
+    const n = norm(raw);
+    if(lookup[n]) return lookup[n];
+    // try stripping trailing 's'
+    if(n.endsWith('s') && lookup[n.slice(0,-1)]) return lookup[n.slice(0,-1)];
+    return null;
+  }
+
+  function levenshtein(a,b){
+    const m=a.length,n=b.length;
+    const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+    for(let i=0;i<=m;i++) dp[i][0]=i;
+    for(let j=0;j<=n;j++) dp[0][j]=j;
+    for(let i=1;i<=m;i++){
+      for(let j=1;j<=n;j++){
+        dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+      }
+    }
+    return dp[m][n];
+  }
+
+  function suggestUnit(raw){
+    const n = norm(raw);
+    if(!n) return null;
+    let best=null, bestDist=Infinity;
+    for(const tok of allKnownTokens){
+      const d = levenshtein(n, tok);
+      if(d < bestDist){ bestDist = d; best = tok; }
+    }
+    if(best && bestDist <= 2) return best;
+    return null;
+  }
+
+  function tempToCelsius(val, unit){
+    if(unit==='c') return val;
+    if(unit==='f') return (val - 32) * 5/9;
+    if(unit==='k') return val - 273.15;
+  }
+  function celsiusToTemp(c, unit){
+    if(unit==='c') return c;
+    if(unit==='f') return c * 9/5 + 32;
+    if(unit==='k') return c + 273.15;
+  }
+
+  function formatNumber(n){
+    if(!isFinite(n)) return '—';
+    const abs = Math.abs(n);
+    let str;
+    if(abs !== 0 && (abs < 0.0001 || abs >= 1e9)){
+      str = n.toExponential(4);
+    } else {
+      str = parseFloat(n.toFixed(6)).toString();
+    }
+    return str;
+  }
+
+  // parse a string like "5 km" or "98.6F" or "2 cups"
+  function parseInputValue(str){
+    if(!str) return null;
+    const m = str.trim().match(/^(-?\d*\.?\d+)\s*(.*)$/);
+    if(!m) return null;
+    const value = parseFloat(m[1]);
+    const unitRaw = m[2].trim();
+    if(isNaN(value)) return null;
+    return {value, unitRaw};
+  }
+
+  // ---------------- DOM refs ----------------
+  const inputVal = document.getElementById('inputVal');
+  const outputUnit = document.getElementById('outputUnit');
+  const readout = document.getElementById('readout');
+  const swapBtn = document.getElementById('swapBtn');
+  const micBtn = document.getElementById('micBtn');
+  const micRings = document.getElementById('micRings');
+  const micHint = document.getElementById('micHint');
+  const noSpeechNote = document.getElementById('noSpeechNote');
+  const historyWrap = document.getElementById('historyWrap');
+  const historyList = document.getElementById('historyList');
+  const clearBtn = document.getElementById('clearBtn');
+
+  let history = [];
+
+  function setReadoutPlaceholder(){
+    readout.innerHTML = '<p class="placeholder">Result appears here.</p>';
+  }
+
+  function renderResult({value, fromUnitRaw, fromResolved, toUnitRaw, toResolved, result, sameCategory}){
+    let html = '';
+    if(!fromResolved){
+      const sug = suggestUnit(fromUnitRaw);
+      html = `<p class="note error">Didn't recognize the unit "${escapeHtml(fromUnitRaw)}".</p>`;
+      if(sug) html += `<span class="suggestion" data-fix="from" data-val="${sug}">Did you mean "${sug}"?</span>`;
+    } else if(!toResolved){
+      const sug = suggestUnit(toUnitRaw);
+      html = `<p class="note error">Didn't recognize the unit "${escapeHtml(toUnitRaw)}".</p>`;
+      if(sug) html += `<span class="suggestion" data-fix="to" data-val="${sug}">Did you mean "${sug}"?</span>`;
+    } else if(!sameCategory){
+      html = `<p class="note error">"${fromResolved.unit}" and "${toResolved.unit}" aren't the same kind of unit.</p>`;
+    } else {
+      html = `<div class="result">${formatNumber(result)}<span class="unit">${toResolved.unit}</span></div>
+              <p class="note">${value} ${fromResolved.unit} = ${formatNumber(result)} ${toResolved.unit}</p>`;
+    }
+    readout.innerHTML = html;
+
+    // attach suggestion click handlers
+    readout.querySelectorAll('.suggestion').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        if(el.dataset.fix === 'from'){
+          const parsed = parseInputValue(inputVal.value) || {value:'', unitRaw:''};
+          inputVal.value = `${parsed.value} ${el.dataset.val}`;
+        } else {
+          outputUnit.value = el.dataset.val;
+        }
+        compute();
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function compute(recordHistory){
+    const parsed = parseInputValue(inputVal.value);
+    const toRaw = outputUnit.value.trim();
+
+    inputVal.classList.remove('invalid');
+    outputUnit.classList.remove('invalid');
+
+    if(!parsed || !toRaw){
+      setReadoutPlaceholder();
+      return;
+    }
+
+    const fromResolved = resolveUnit(parsed.unitRaw);
+    const toResolved = resolveUnit(toRaw);
+
+    if(!fromResolved) inputVal.classList.add('invalid');
+    if(!toResolved) outputUnit.classList.add('invalid');
+
+    if(!fromResolved || !toResolved){
+      renderResult({value:parsed.value, fromUnitRaw:parsed.unitRaw, fromResolved, toUnitRaw:toRaw, toResolved});
+      return;
+    }
+
+    const sameCategory = fromResolved.category === toResolved.category;
+    if(!sameCategory){
+      renderResult({value:parsed.value, fromResolved, toResolved, sameCategory:false});
+      return;
+    }
+
+    let result;
+    const cat = categories[fromResolved.category];
+    if(cat.special){ // temperature
+      const c = tempToCelsius(parsed.value, fromResolved.unit);
+      result = celsiusToTemp(c, toResolved.unit);
+    } else {
+      const baseVal = parsed.value * cat.units[fromResolved.unit];
+      result = baseVal / cat.units[toResolved.unit];
+    }
+
+    renderResult({value:parsed.value, fromResolved, toResolved, result, sameCategory:true});
+
+    if(recordHistory){
+      addHistory(`${parsed.value} ${fromResolved.unit}`, `${formatNumber(result)} ${toResolved.unit}`, inputVal.value, outputUnit.value);
+    }
+  }
+
+  function addHistory(fromStr, toStr, rawFrom, rawTo){
+    history.unshift({fromStr, toStr, rawFrom, rawTo});
+    history = history.slice(0,5);
+    renderHistory();
+  }
+
+  function renderHistory(){
+    if(history.length === 0){ historyWrap.style.display = 'none'; return; }
+    historyWrap.style.display = 'block';
+    historyList.innerHTML = history.map((h,i)=>`
+      <div class="history-item" data-idx="${i}">
+        <span>${escapeHtml(h.fromStr)}</span>
+        <span class="arrow">→</span>
+        <span>${escapeHtml(h.toStr)}</span>
+      </div>
+    `).join('');
+    historyList.querySelectorAll('.history-item').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const h = history[parseInt(el.dataset.idx,10)];
+        inputVal.value = h.rawFrom;
+        outputUnit.value = h.rawTo;
+        compute(false);
+      });
+    });
+  }
+
+  let debounceTimer;
+  function scheduleCompute(){
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(()=>compute(true), 250);
+  }
+
+  inputVal.addEventListener('input', scheduleCompute);
+  outputUnit.addEventListener('input', scheduleCompute);
+
+  clearBtn.addEventListener('click', ()=>{
+    inputVal.value = '';
+    outputUnit.value = '';
+    inputVal.classList.remove('invalid');
+    outputUnit.classList.remove('invalid');
+    setReadoutPlaceholder();
+    inputVal.focus();
+  });
+
+  swapBtn.addEventListener('click', ()=>{
+    swapBtn.classList.add('spin');
+    setTimeout(()=>swapBtn.classList.remove('spin'), 200);
+
+    const parsed = parseInputValue(inputVal.value);
+    const toRaw = outputUnit.value.trim();
+
+    if(parsed && toRaw){
+      const fromResolved = resolveUnit(parsed.unitRaw);
+      const toResolved = resolveUnit(toRaw);
+      if(fromResolved && toResolved && fromResolved.category === toResolved.category){
+        // compute current result to use as new "from" value
+        const cat = categories[fromResolved.category];
+        let result;
+        if(cat.special){
+          const c = tempToCelsius(parsed.value, fromResolved.unit);
+          result = celsiusToTemp(c, toResolved.unit);
+        } else {
+          result = (parsed.value * cat.units[fromResolved.unit]) / cat.units[toResolved.unit];
+        }
+        inputVal.value = `${formatNumber(result)} ${toResolved.unit}`;
+        outputUnit.value = fromResolved.unit;
+        compute(true);
+        return;
+      }
+    }
+    // fallback: just swap the raw unit text
+    inputVal.value = `${parsed ? parsed.value : ''} ${toRaw}`.trim();
+    outputUnit.value = parsed ? parsed.unitRaw : '';
+    compute(true);
+  });
+
+  // ---------------- Voice input ----------------
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let listening = false;
+
+  if(!SpeechRecognition){
+    noSpeechNote.style.display = 'block';
+    micBtn.disabled = true;
+    micBtn.style.opacity = '0.4';
+    micBtn.style.cursor = 'not-allowed';
+  } else {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      listening = true;
+      micBtn.classList.add('listening');
+      micRings.classList.add('listening');
+      micHint.textContent = 'Listening…';
+      micHint.classList.add('live');
+      micHint.classList.remove('err');
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for(let i=0;i<event.results.length;i++){
+        transcript += event.results[i][0].transcript;
+      }
+      micHint.textContent = '"' + transcript + '"';
+      if(event.results[event.results.length-1].isFinal){
+        parseSpokenConversion(transcript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      micHint.textContent = event.error === 'not-allowed'
+        ? 'Microphone access denied.'
+        : "Didn't catch that — try again.";
+      micHint.classList.add('err');
+      micHint.classList.remove('live');
+    };
+
+    recognition.onend = () => {
+      listening = false;
+      micBtn.classList.remove('listening');
+      micRings.classList.remove('listening');
+      setTimeout(()=>{
+        if(!micHint.classList.contains('err')){
+          micHint.textContent = 'Tap the mic and say "5 km to miles"';
+          micHint.classList.remove('live');
+        }
+      }, 2200);
+    };
+
+    micBtn.addEventListener('click', () => {
+      if(listening){
+        recognition.stop();
+        return;
+      }
+      try{
+        recognition.start();
+      }catch(e){
+        // already started; ignore
+      }
+    });
+  }
+
+  function parseSpokenConversion(text){
+    let t = text.toLowerCase().trim();
+    t = t.replace(/^convert\s+/, '');
+    // split on connecting words: "to", "into", "in"
+    const splitMatch = t.match(/^(.*?)\s+(?:to|into|in)\s+(.+)$/);
+    if(!splitMatch){
+      micHint.textContent = `Heard "${text}" — say it like "5 km to miles"`;
+      micHint.classList.add('err');
+      return;
+    }
+    let fromPart = splitMatch[1].trim();
+    let toPart = splitMatch[2].trim();
+
+    // remove filler words
+    fromPart = fromPart.replace(/\bdegrees?\b/g,'').trim();
+    toPart = toPart.replace(/\bdegrees?\b/g,'').trim();
+
+    // extract leading number from fromPart (handle word "point")
+    fromPart = fromPart.replace(/\bpoint\b/g, '.');
+    const numMatch = fromPart.match(/^(-?\d*\.?\d+)\s*(.*)$/);
+    if(!numMatch){
+      micHint.textContent = `Couldn't find a number in "${text}"`;
+      micHint.classList.add('err');
+      return;
+    }
+
+    inputVal.value = `${numMatch[1]} ${numMatch[2]}`.trim();
+    outputUnit.value = toPart;
+    micHint.textContent = `Set: ${inputVal.value} → ${outputUnit.value}`;
+    micHint.classList.remove('err');
+    micHint.classList.add('live');
+    compute(true);
+  }
+
+})();
+</script>
+</body>
+</html>
